@@ -2,6 +2,31 @@
 
 This repository is a **local proof of concept** that mirrors an AWS-style provisioning flow using **Terraform**, **Docker**, **Checkov**, and **GitHub Actions**. There is **no cloud provider**: containers stand in for compute, a user-defined Docker network stands in for a VPC, and PostgreSQL runs as a managed-style data tier.
 
+## Quick start (see it working)
+
+1. **Start Docker** (Docker Engine running on your machine).
+2. **Install Terraform** on your PATH (`terraform version`), or use only the Compose path below.
+3. From the **repository root** (the folder that contains `app/` and `terraform/`):
+
+   ```bash
+   make demo
+   ```
+
+   This creates `.env` from `.env.example` if needed, runs `terraform init` and `terraform apply`, then prints outputs.
+
+4. **Visualize:**
+   - **Browser:** open `http://localhost:3000` (or the `frontend_url` printed by `make open`).
+   - **Containers:** `make status` or `docker ps --filter name=poc-devsecops`.
+   - **API:** `curl -s http://localhost:3000/api/status` (JSON with DB + replica info).
+
+5. **Stop / remove:** `make tf-destroy` (Terraform-managed stack) or `make compose-down` (Compose stack).
+
+**Even simpler (no Terraform):** `cp .env.example .env`, edit passwords if you like, then `make compose-up` and open `http://localhost:3000`.
+
+**Credentials:** put database user/password in `.env` as `TF_VAR_postgres_user` and `TF_VAR_postgres_password` (and matching `POSTGRES_*` for Compose). The Makefile loads `.env` for you — you do **not** need to run `source .env` by hand for `make demo`, `make tf-plan`, or `make tf-apply`.
+
+**Why “full repo on disk”?** Terraform builds images using paths like `../app/backend` relative to the `terraform/` folder. You only need that detail if you run Terraform **inside a container**; then you mount the whole project (see end of README). A normal `make demo` from a normal clone is enough.
+
 ## Architecture
 
 | Concern | Real cloud analogue | This PoC |
@@ -43,28 +68,27 @@ This repository is a **local proof of concept** that mirrors an AWS-style provis
 
 ## Configuration
 
-1. Copy `.env.example` to `.env` and set strong values for database credentials.
-2. Export variables for Terraform (the Makefile documents the pattern):
-
-   ```bash
-   set -a && source .env && set +a
-   ```
-
-   Required for apply/plan: `TF_VAR_postgres_user`, `TF_VAR_postgres_password`.
-
-3. Optional: copy `terraform/terraform.tfvars.example` to `terraform/terraform.tfvars` for non-env configuration (keep `terraform.tfvars` out of Git).
+1. Copy `.env.example` to `.env` (or rely on `make demo` to create it) and set **`TF_VAR_postgres_user`** and **`TF_VAR_postgres_password`** (and matching **`POSTGRES_*`** keys for Docker Compose).
+2. **You do not need to `source .env` manually** for `make demo`, `make tf-plan`, `make tf-apply`, or `make tf-destroy` — the Makefile loads `.env` for those targets.
+3. Optional: copy `terraform/terraform.tfvars.example` to `terraform/terraform.tfvars` for extra variables (keep secrets out of Git).
 
 ## Run locally (Terraform)
 
-From the repository root, with Docker running and env vars loaded:
+From the repository root, with Docker running:
+
+```bash
+make demo
+```
+
+Or step by step:
 
 ```bash
 make tf-init
-make tf-plan    # or: terraform -chdir=terraform plan
-make tf-apply   # creates network, DB volume, images, containers
+make tf-plan
+make tf-apply
 ```
 
-Open the UI from Terraform outputs, e.g. `http://localhost:3000` (default `host_frontend_port`).
+Then `make open` for URLs/outputs, or open `http://localhost:3000` by default.
 
 **Scaling:** `TF_VAR_backend_replica_count` (1–5) controls how many API containers are created; nginx load-balances across their names on the Docker network.
 
