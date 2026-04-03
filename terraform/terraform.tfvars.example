@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars (do not commit) or export TF_VAR_* from .env — see README.
+
+project_name            = "poc-devsecops"
+network_name            = "app-vpc"
+postgres_db             = "appdb"
+backend_replica_count   = 2
+host_frontend_port      = 3000
+
+postgres_user     = "appuser"
+postgres_password = "change-me-use-strong-secret"

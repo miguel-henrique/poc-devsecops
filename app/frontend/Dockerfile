@@ -1,0 +1,8 @@
+FROM nginxinc/nginx-unprivileged:1.27-alpine
+
+COPY --chown=101:101 static /usr/share/nginx/html
+
+USER nginx
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 \
+    CMD wget -qO- http://127.0.0.1:8080/ || exit 1

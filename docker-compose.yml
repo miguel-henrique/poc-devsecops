@@ -1,0 +1,56 @@
+# Optional fallback: run the same logical stack without Terraform (compose-only).
+# Prefer the Terraform flow for IaC + Checkov alignment with CI.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      appnet:
+        aliases: [db]
+
+  api:
+    build: ./app/backend
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-appuser}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      PGDATABASE: ${POSTGRES_DB:-appdb}
+      REPLICA_INDEX: "0"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - appnet
+
+  web:
+    build: ./app/frontend
+    ports:
+      - "${HOST_FRONTEND_PORT:-3000}:8080"
+    volumes:
+      - ./app/frontend/nginx.compose.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+    networks:
+      - appnet
+
+volumes:
+  pgdata:
+
+networks:
+  appnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16

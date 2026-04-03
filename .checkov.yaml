@@ -1,0 +1,7 @@
+# Scan Terraform only; fail the pipeline on findings (default: no soft-fail).
+framework:
+  - terraform
+directory:
+  - terraform
+compact: true
+download-external-modules: true

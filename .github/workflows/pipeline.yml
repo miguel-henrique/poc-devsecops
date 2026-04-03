@@ -1,0 +1,61 @@
+name: Terraform and Checkov
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      TF_VAR_postgres_user: ci_appuser
+      TF_VAR_postgres_password: ci_not_a_real_secret
+      TF_VAR_postgres_db: appdb
+      TF_VAR_backend_replica_count: 2
+      TF_VAR_host_frontend_port: 3000
+      TF_VAR_project_name: poc-devsecops-ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python (Checkov)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.0
+          terraform_wrapper: false
+
+      - name: Terraform format (check)
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        working-directory: terraform
+        run: terraform init -input=false
+
+      - name: Terraform validate
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Checkov (Terraform HCL)
+        run: checkov -d terraform --framework terraform --compact
+
+      - name: Checkov (Dockerfiles)
+        run: checkov -d app --framework dockerfile --compact
+
+      - name: Terraform plan
+        working-directory: terraform
+        run: terraform plan -input=false -no-color

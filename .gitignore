@@ -1,0 +1,27 @@
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+terraform/terraform.tfvars
+terraform/**/.generated/
+terraform/**/.terraform/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Local plan binary
+terraform/tfplan
+
+# Env
+.env
+
+# Local Terraform plan exports (optional)
+tfplan
+tfplan.json
+
+# OS / editor
+.DS_Store
+*.swp

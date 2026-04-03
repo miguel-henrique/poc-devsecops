@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PoC DevSecOps</title>
+    <style>
+      :root {
+        font-family: system-ui, sans-serif;
+        line-height: 1.5;
+        color: #0f172a;
+        background: #f8fafc;
+      }
+      body {
+        max-width: 40rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      code {
+        background: #e2e8f0;
+        padding: 0.15rem 0.35rem;
+        border-radius: 4px;
+      }
+      pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 1rem;
+        border-radius: 8px;
+        overflow-x: auto;
+      }
+      .ok {
+        color: #15803d;
+      }
+      .err {
+        color: #b91c1c;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Local cloud PoC</h1>
+    <p>
+      This UI is served by nginx (frontend). It calls the API through
+      <code>/api/</code>, which is proxied to one of the backend replicas.
+    </p>
+    <p id="status">Loading API status…</p>
+    <pre id="payload"></pre>
+    <script>
+      async function load() {
+        const statusEl = document.getElementById("status");
+        const payloadEl = document.getElementById("payload");
+        try {
+          const res = await fetch("/api/status");
+          const body = await res.json();
+          statusEl.textContent = res.ok
+            ? "API reachable (database check below)."
+            : "API returned an error.";
+          statusEl.className = res.ok ? "ok" : "err";
+          payloadEl.textContent = JSON.stringify(body, null, 2);
+        } catch (e) {
+          statusEl.textContent = "Failed to reach /api/status";
+          statusEl.className = "err";
+          payloadEl.textContent = String(e);
+        }
+      }
+      load();
+    </script>
+  </body>
+</html>
