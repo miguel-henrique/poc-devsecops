@@ -2,7 +2,9 @@ resource "local_file" "nginx_conf" {
   content = templatefile("${path.module}/templates/default.conf.tftpl", {
     backend_hosts = var.backend_hostnames
   })
-  filename = "${path.module}/.generated/default.conf"
+  # Under app/frontend so Docker build COPY sees a normal host path (bind mounts from
+  # Terraform-in-Docker used /project/... which the daemon could not map to a file).
+  filename = abspath("${path.root}/../app/frontend/generated/default.conf")
 }
 
 resource "docker_image" "frontend" {
@@ -12,9 +14,12 @@ resource "docker_image" "frontend" {
     dockerfile = "Dockerfile"
   }
 
+  depends_on = [local_file.nginx_conf]
+
   triggers = {
     dockerfile = filemd5(abspath("${path.root}/../app/frontend/Dockerfile"))
     index      = filemd5(abspath("${path.root}/../app/frontend/static/index.html"))
+    nginx      = local_file.nginx_conf.content_md5
   }
 }
 
@@ -32,14 +37,6 @@ resource "docker_container" "web" {
   networks_advanced {
     name = var.network_id
   }
-
-  volumes {
-    host_path      = abspath(local_file.nginx_conf.filename)
-    container_path = "/etc/nginx/conf.d/default.conf"
-    read_only      = true
-  }
-
-  depends_on = [local_file.nginx_conf]
 
   privileged = false
 

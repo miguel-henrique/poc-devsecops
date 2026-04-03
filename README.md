@@ -1,18 +1,44 @@
 # PoC DevSecOps — Local “Cloud” on Docker + Terraform + Checkov
 
+**Language:** English (this file) · [Português (Brasil)](README.pt-BR.md)
+
 This repository is a **local proof of concept** that mirrors an AWS-style provisioning flow using **Terraform**, **Docker**, **Checkov**, and **GitHub Actions**. There is **no cloud provider**: containers stand in for compute, a user-defined Docker network stands in for a VPC, and PostgreSQL runs as a managed-style data tier.
 
 ## Quick start (see it working)
 
+**Single command (recommended):** from the **repository root**:
+
+```bash
+./dev-up.sh
+```
+
+This script checks **Docker**, creates **`.env`** from `.env.example` if needed, prefers **Terraform on your PATH** if it works, otherwise runs **Terraform in Docker** (and if host `terraform init` fails, it retries with Docker). **Before `apply`**, it runs **Checkov** on `terraform/` and `app/` (uses the `checkov` binary if installed, otherwise the `bridgecrew/checkov` image). The output is formatted for demos: sections for static analysis, a short note mirroring the GitHub Actions pipeline, then Terraform provisioning, then a live `docker ps` plus copy-paste inspection commands. Use **`./dev-up.sh --skip-checkov`** to skip the scan (faster iteration). After a successful run, **`make inspect`** reprints the inspection block without Terraform.
+
+Set **`CHECKOV=0`** in the environment for the same effect as `--skip-checkov`.
+
+If Docker is not installed (Ubuntu/Debian only):
+
+```bash
+./dev-up.sh --install-deps
+```
+
+To also install the **`terraform`** APT package from HashiCorp:
+
+```bash
+./dev-up.sh --install-deps --with-terraform-apt
+```
+
+Non-interactive installs (for scripts): `./dev-up.sh --yes --install-deps`
+
+Other entry points: `make dev-up` (same as `./dev-up.sh`), `make demo`, `./scripts/dev-up.sh`.
+
+---
+
+**Manual steps (equivalent to the old flow):**
+
 1. **Start Docker** (Docker Engine running on your machine).
-2. **Install Terraform** on your PATH (`terraform version`), or use only the Compose path below.
-3. From the **repository root** (the folder that contains `app/` and `terraform/`):
-
-   ```bash
-   make demo
-   ```
-
-   This creates `.env` from `.env.example` if needed, runs `terraform init` and `terraform apply`, then prints outputs.
+2. **Terraform:** optional — leave it out and the Makefile / `dev-up.sh` will use Docker for Terraform when the binary is missing.
+3. Run `make demo` or `make tf-init` then `make tf-apply`.
 
 4. **Visualize:**
    - **Browser:** open `http://localhost:3000` (or the `frontend_url` printed by `make open`).
@@ -59,12 +85,68 @@ This repository is a **local proof of concept** that mirrors an AWS-style provis
 - `.github/workflows/pipeline.yml` — CI: `fmt`, `init`, `validate`, Checkov, `plan`.
 - `docker-compose.yml` — Optional stack without Terraform (single API replica).
 - `Makefile` — Convenience targets for local workflows.
+- `dev-up.sh` / `scripts/dev-up.sh` — One-shot bootstrap: checks deps, host Terraform or Docker, init + apply.
+- `scripts/terraform-docker.sh` — Runs Terraform in Docker when `terraform` is not installed; forwards `TF_VAR_*` and adds `--group-add` for the Docker socket GID so the container can use `/var/run/docker.sock`.
 
 ## Prerequisites
 
-- Docker Engine (daemon reachable at `/var/run/docker.sock` by default).
-- Terraform `>= 1.5` (or run it via a container — see below).
-- Python 3 + `pip` **or** the `bridgecrew/checkov` container for scans.
+- **Docker Engine** — daemon reachable at `/var/run/docker.sock` (default on Linux).
+- **Terraform `>= 1.5`** — optional for this repo: if `terraform` is **not** on your `PATH`, `make` runs [`scripts/terraform-docker.sh`](scripts/terraform-docker.sh) (official `hashicorp/terraform` image with your repo mounted). You still need Docker for that.
+- Python 3 + `pip` **or** the `bridgecrew/checkov` container for scans (only if you run Checkov locally).
+
+### Start Docker (Linux)
+
+Check:
+
+```bash
+docker version
+```
+
+If that fails with permission errors, your user may need the `docker` group (log out/in after):
+
+```bash
+sudo usermod -aG docker "$USER"
+```
+
+If the daemon is stopped:
+
+```bash
+sudo systemctl start docker
+sudo systemctl enable docker   # optional: start on boot
+```
+
+### “Permission denied” on `/var/run/docker.sock` during `apply` (Terraform in Docker)
+
+The Terraform container runs as your user id. The socket is usually `root:docker` with mode `660`, so the wrapper passes **`--group-add` with the socket’s group id** from the host. After updating `scripts/terraform-docker.sh`, run `./dev-up.sh` again.
+
+If it still fails: ensure the host user can run `docker ps` (add to the `docker` group, then **log out and back in**), and that nothing overrides `DOCKER_HOST` to a non-default socket without updating the wrapper.
+
+### Install Terraform on your PATH (optional)
+
+Ubuntu’s default archives **do not** include Terraform. If you run `sudo apt install terraform` **without** adding HashiCorp’s repository first, you get **`E: Unable to locate package terraform`**. You must add the repo, then install.
+
+**Option A — HashiCorp APT (Debian / Ubuntu), run the whole block in order:**
+
+```bash
+sudo apt install -y wget gnupg software-properties-common
+
+wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+  | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+sudo apt update
+sudo apt install -y terraform
+terraform version
+```
+
+**Option B — Snap (no APT repo):**
+
+```bash
+sudo snap install terraform
+```
+
+**Option C — Skip installing Terraform** and use this repo’s Docker wrapper only: run **`make demo`** / **`make tf-init`** from the project root. The Makefile uses `scripts/terraform-docker.sh` when `terraform` is not on your `PATH` (Docker must be running; `TF_VAR_*` from `.env` are passed into the container).
 
 ## Configuration
 
@@ -94,14 +176,13 @@ Then `make open` for URLs/outputs, or open `http://localhost:3000` by default.
 
 ### Terraform via container (optional)
 
-If Terraform is not installed on the host, you can run commands with the official image. Mount the **whole repository** so paths like `${path.root}/../app/backend` resolve:
+If you are not using `make`, the same wrapper the Makefile uses is:
 
 ```bash
-docker run --rm -u "$(id -u):$(id -g)" \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v "$(pwd)":/project -w /project/terraform \
-  hashicorp/terraform:1.9.0 plan -input=false
+./scripts/terraform-docker.sh -chdir=terraform plan -input=false
 ```
+
+Run that from the **repository root** so the project mounts correctly.
 
 ## Run locally (Docker Compose fallback)
 

@@ -5,6 +5,9 @@ terraform/*.tfstate.*
 terraform/*.tfvars
 terraform/terraform.tfvars
 terraform/**/.generated/
+# Terraform overwrites default.conf on apply; keep stub in git for first docker build.
+app/frontend/generated/*
+!app/frontend/generated/default.conf
 terraform/**/.terraform/
 
 # Python
