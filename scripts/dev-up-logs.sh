@@ -121,7 +121,7 @@ presentation_checkov_hint_install() {
 presentation_live_status() {
 	local project="${1:-poc-devsecops}"
 	echo ""
-	_c "$_C_BOLD" "  📦  Containers em execução (trecho ao vivo para a demo)"
+	_c "$_C_BOLD" "  📦  Containers em execução"
 	docker ps --filter "name=${project}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || _c "$_C_DIM" "    (nenhum container encontrado com esse filtro)"
 	echo ""
 }
@@ -133,7 +133,7 @@ presentation_footer() {
 	local full_net="${project}-${net_suffix}"
 	echo ""
 	_c "$_C_CYAN$_C_BOLD" "══════════════════════════════════════════════════════════════════════"
-	_c "$_C_CYAN$_C_BOLD" "  📋  Inspecionar o que foi provisionado (comandos para apresentação)"
+	_c "$_C_CYAN$_C_BOLD" "  📋  Comandos úteis para inspeção do ambiente"
 	_c "$_C_CYAN$_C_BOLD" "══════════════════════════════════════════════════════════════════════"
 	echo ""
 	_c "$_C_BOLD" "  Serviços em execução (containers do projeto)"
