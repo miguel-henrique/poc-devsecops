@@ -16,6 +16,8 @@ O script verifica o **Docker**, cria **`.env`** a partir de `.env.example` se ne
 
 Defina **`CHECKOV=0`** no ambiente para o mesmo efeito de `--skip-checkov`.
 
+**Derrubar a stack:** `./dev-down.sh` ou `make dev-down` (equivale a `terraform destroy`). Em seguida `./dev-up.sh` recria tudo.
+
 Se o Docker não estiver instalado (somente Ubuntu/Debian):
 
 ```bash
@@ -272,4 +274,6 @@ Versione `terraform/.terraform.lock.hcl` para provedores reproduzíveis; **não*
 
 ## Documentação acadêmica
 
-Para relacionar este projeto a pesquisa em DevSecOps e IaC, veja [`docs/APRESENTACAO-PESQUISA.md`](docs/APRESENTACAO-PESQUISA.md).
+- [`docs/APRESENTACAO-PESQUISA.md`](docs/APRESENTACAO-PESQUISA.md) — texto para apresentação e defesa  
+- [`docs/MAPEAMENTO-AWS-E-MONOGRAFIA.md`](docs/MAPEAMENTO-AWS-E-MONOGRAFIA.md) — PoC AWS (VPC, RDS, EKS…) ↔ containers locais ↔ conceitos da monografia  
+- [`docs/GUIA-EXPERIMENTOS-CHECKOV.md`](docs/GUIA-EXPERIMENTOS-CHECKOV.md) — como quebrar o Checkov de propósito e contraste com GitGuardian/OPA

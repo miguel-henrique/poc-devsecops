@@ -16,6 +16,10 @@ This script checks **Docker**, creates **`.env`** from `.env.example` if needed,
 
 Set **`CHECKOV=0`** in the environment for the same effect as `--skip-checkov`.
 
+**Tear down:** `./dev-down.sh` or `make dev-down` (runs `terraform destroy`). Then `./dev-up.sh` to reprovision.
+
+**Academic mapping & Checkov experiments:** [docs/MAPEAMENTO-AWS-E-MONOGRAFIA.md](docs/MAPEAMENTO-AWS-E-MONOGRAFIA.md), [docs/GUIA-EXPERIMENTOS-CHECKOV.md](docs/GUIA-EXPERIMENTOS-CHECKOV.md).
+
 If Docker is not installed (Ubuntu/Debian only):
 
 ```bash
@@ -253,8 +257,15 @@ You should see `frontend_url`, `api_proxy_path`, `backend_container_names`, and 
 | `make tf-init` | `terraform init` |
 | `make tf-validate` | init + `validate` |
 | `make checkov` | Terraform + Dockerfile scans |
+| `make dev-down` | Same as `./dev-down.sh` (`terraform destroy`) |
 | `make tf-plan` / `make tf-apply` / `make tf-destroy` | Full lifecycle (needs env + Docker) |
 | `make compose-up` / `make compose-down` | Docker Compose fallback |
+
+## Academic docs (Portuguese)
+
+- [`docs/APRESENTACAO-PESQUISA.md`](docs/APRESENTACAO-PESQUISA.md) — presentation narrative  
+- [`docs/MAPEAMENTO-AWS-E-MONOGRAFIA.md`](docs/MAPEAMENTO-AWS-E-MONOGRAFIA.md) — AWS PoC vs local containers vs thesis concepts  
+- [`docs/GUIA-EXPERIMENTOS-CHECKOV.md`](docs/GUIA-EXPERIMENTOS-CHECKOV.md) — deliberate Checkov failures; GitGuardian vs Checkov  
 
 ## Git
 

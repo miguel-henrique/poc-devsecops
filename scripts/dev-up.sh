@@ -5,7 +5,7 @@
 #   ./scripts/dev-up.sh --install-deps          # Ubuntu/Debian: sudo apt install docker.io etc. if missing
 #   ./scripts/dev-up.sh --install-deps --with-terraform-apt
 #   ./scripts/dev-up.sh --yes --install-deps  # non-interactive apt -y
-#   ./scripts/dev-up.sh --destroy
+#   ./scripts/dev-up.sh --destroy   # ou ./dev-down.sh / make dev-down
 #   ./scripts/dev-up.sh --skip-checkov   # pula Checkov (mais rápido; sem demo de análise estática)
 set -euo pipefail
 
@@ -38,7 +38,7 @@ Usage: scripts/dev-up.sh [options]
   --install-deps    Ubuntu/Debian: sudo apt install docker.io and tools if Docker is missing.
   --with-terraform-apt   With --install-deps: also add HashiCorp APT and install terraform.
   -y, --yes         Non-interactive apt (DEBIAN_FRONTEND=noninteractive).
-  --destroy         terraform destroy (same backend selection as state).
+  --destroy         terraform destroy (equivalente a ./dev-down.sh / make dev-down).
   --skip-checkov    Não executa Checkov antes do apply (mais rápido).
   -h, --help        This help.
 
@@ -223,10 +223,12 @@ main() {
 
 	presentation_init
 	presentation_banner
+	presentation_research_bridge
 
 	if [[ "$SKIP_CHECKOV" -eq 1 ]]; then
 		presentation_skip_checkov
 	else
+		presentation_pipeline_stages
 		presentation_section_static_analysis
 		presentation_note_ci
 		if command -v checkov >/dev/null 2>&1; then
@@ -261,6 +263,7 @@ main() {
 	local port="${TF_VAR_host_frontend_port:-3000}"
 	local net="${TF_VAR_network_name:-app-vpc}"
 	presentation_live_status "$project"
+	presentation_post_apply_summary "$project" "$replicas" "$port" "$net"
 	presentation_footer "$project" "$port" "$net"
 }
 
