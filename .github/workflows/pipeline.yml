@@ -19,6 +19,7 @@ jobs:
       TF_VAR_backend_replica_count: 2
       TF_VAR_host_frontend_port: 3000
       TF_VAR_project_name: poc-devsecops-ci
+      BC_SKIP_MAPPING: "TRUE"
 
     steps:
       - name: Checkout
@@ -51,10 +52,10 @@ jobs:
         run: terraform validate
 
       - name: Checkov (Terraform HCL)
-        run: checkov -d terraform --framework terraform --compact
+        run: checkov --skip-download -d terraform --framework terraform --compact
 
       - name: Checkov (Dockerfiles)
-        run: checkov -d app --framework dockerfile --compact
+        run: checkov --skip-download -d app --framework dockerfile --compact
 
       - name: Terraform plan
         working-directory: terraform

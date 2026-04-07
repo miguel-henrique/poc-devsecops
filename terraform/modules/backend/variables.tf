@@ -31,3 +31,9 @@ variable "db_host" {
 variable "db_port" {
   type = number
 }
+
+variable "pip_trusted_host_build" {
+  description = "If true, pip uses --trusted-host for PyPI during image build (corporate SSL/proxy)."
+  type        = bool
+  default     = false
+}

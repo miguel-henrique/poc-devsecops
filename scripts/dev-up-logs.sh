@@ -120,14 +120,19 @@ run_checkov_scan() {
 			_c "$_C_DIM" "     (puxando imagem na primeira execução — pode levar um minuto)"
 			docker pull bridgecrew/checkov:latest
 		}
+		# --skip-download + BC_SKIP_MAPPING: evita chamadas HTTPS a api0.prismacloud.io (falham em redes corporativas / WSL com inspeção TLS).
 		docker run --rm \
+			-e BC_SKIP_MAPPING=TRUE \
 			-v "${repo_root}:/workspace:ro" \
 			bridgecrew/checkov:latest \
+			--skip-download \
 			-d /workspace/terraform --framework terraform --compact
 		local ec1=$?
 		docker run --rm \
+			-e BC_SKIP_MAPPING=TRUE \
 			-v "${repo_root}:/workspace:ro" \
 			bridgecrew/checkov:latest \
+			--skip-download \
 			-d /workspace/app --framework dockerfile --compact
 		local ec2=$?
 		if [[ $ec1 -ne 0 || $ec2 -ne 0 ]]; then
@@ -139,8 +144,9 @@ run_checkov_scan() {
 	_c "$_C_CYAN" "  → Executando Checkov no host…"
 	(
 		cd "$repo_root" || exit 1
-		checkov -d terraform --framework terraform --compact &&
-			checkov -d app --framework dockerfile --compact
+		export BC_SKIP_MAPPING=TRUE
+		checkov --skip-download -d terraform --framework terraform --compact &&
+			checkov --skip-download -d app --framework dockerfile --compact
 	)
 }
 

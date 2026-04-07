@@ -102,8 +102,8 @@ tf-validate: tf-init
 	$(TF) -chdir=$(TF_DIR) validate
 
 checkov:
-	checkov -d $(TF_DIR) --framework terraform --compact && \
-	checkov -d app --framework dockerfile --compact
+	BC_SKIP_MAPPING=TRUE checkov --skip-download -d $(TF_DIR) --framework terraform --compact && \
+	BC_SKIP_MAPPING=TRUE checkov --skip-download -d app --framework dockerfile --compact
 
 tf-plan:
 	@if [[ ! -f "$(ENV_FILE)" ]]; then echo "Missing $(ENV_FILE). Run: cp .env.example .env"; exit 1; fi
