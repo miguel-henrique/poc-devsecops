@@ -1,4 +1,5 @@
-# Root stack: compose modules like a cloud landing zone (network → data → compute → edge).
+# Root stack: ordem análoga à PoC AWS de referência (vpc → security/storage/iam implícitos → rds → eks).
+# Mapeamento conceitual: docs/MAPEAMENTO-AWS-E-MONOGRAFIA.md
 
 module "network" {
   source = "./modules/network"

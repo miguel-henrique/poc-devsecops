@@ -16,4 +16,5 @@ source "${REPO_ROOT}/.env"
 set +a
 presentation_init
 presentation_live_status "${TF_VAR_project_name:-poc-devsecops}"
+presentation_post_apply_summary "${TF_VAR_project_name:-poc-devsecops}" "${TF_VAR_backend_replica_count:-2}" "${TF_VAR_host_frontend_port:-3000}" "${TF_VAR_network_name:-app-vpc}"
 presentation_footer "${TF_VAR_project_name:-poc-devsecops}" "${TF_VAR_host_frontend_port:-3000}" "${TF_VAR_network_name:-app-vpc}"

@@ -13,13 +13,14 @@ endif
 # Run a command with $(ENV_FILE) sourced (so TF_VAR_* are set for Terraform).
 with-env = bash -c 'set -euo pipefail; set -a; source "$(ENV_FILE)"; set +a; $(1)'
 
-.PHONY: help dev-up demo demo-plan status inspect open load-env envcheck tf-init tf-fmt tf-validate checkov tf-plan tf-apply tf-destroy compose-up compose-down
+.PHONY: help dev-up dev-down demo demo-plan status inspect open load-env envcheck tf-init tf-fmt tf-validate checkov tf-plan tf-apply tf-destroy compose-up compose-down
 
 help:
 	@echo "PoC DevSecOps — common targets"
 	@echo ""
 	@echo "  One command (recommended):"
 	@echo "    ./dev-up.sh              — checks Docker, .env, Terraform host or Docker, init + apply"
+	@echo "    ./dev-down.sh            — terraform destroy (derruba stack; depois dev-up de novo)"
 	@echo "    ./dev-up.sh --install-deps   — Ubuntu/Debian: install docker.io if missing (sudo)"
 	@echo "    make dev-up ARGS='--install-deps'  — same script (optional ARGS)"
 	@echo ""
@@ -46,6 +47,9 @@ help:
 
 dev-up:
 	@$(CURDIR)/scripts/dev-up.sh $(ARGS)
+
+dev-down:
+	@$(CURDIR)/scripts/dev-up.sh --destroy $(ARGS)
 
 demo:
 	@if [[ ! -f "$(ENV_FILE)" ]]; then \
