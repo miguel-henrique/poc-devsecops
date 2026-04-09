@@ -43,7 +43,7 @@ Usage: scripts/dev-up.sh [options]
   -h, --help        This help.
 
   CHECKOV=0|1       Se CHECKOV=0 no ambiente, equivale a --skip-checkov.
-  TF_VAR_pip_trusted_host_build=true   Se pip falhar com erro SSL no build (proxy corporativo), defina no .env.
+  TF_VAR_pip_trusted_host_build=true   Força trusted-host no build Python (script tenta fallback automático ao detectar erro SSL).
 EOF
 	exit "${1:-0}"
 }
@@ -218,10 +218,12 @@ reconcile_orphan_docker_network() {
 	run_tf import -input=false "module.network.docker_network.this" "$nid"
 }
 
-# Runs apply once; on duplicate Docker network error, import and retry once. Surfaces pip/SSL hints.
+# Runs apply once; on duplicate Docker network error, import and retry once.
+# If backend image build fails due to pip/SSL in corporate networks, enable trusted-host
+# mode for this run and retry once.
 terraform_apply_with_recovery() {
 	reconcile_orphan_docker_network
-	local log rc rc2
+	local log rc rc2 log_retry
 	log="$(mktemp)"
 	set +e
 	run_tf apply -input=false -auto-approve 2>&1 | tee "$log"
@@ -242,7 +244,22 @@ terraform_apply_with_recovery() {
 		return "$rc2"
 	fi
 	if grep -qE 'pip install|requirements\.txt|CERTIFICATE_VERIFY_FAILED|SSLError|certificate verify failed' "$log"; then
-		warn "Build da imagem backend falhou (pip/HTTPS). Tente no .env: TF_VAR_pip_trusted_host_build=true (ambientes com proxy/SSL corporativo)."
+		if [[ "${TF_VAR_pip_trusted_host_build:-}" != "true" ]]; then
+			warn "Build da imagem backend falhou (pip/HTTPS). Ativando fallback automático TF_VAR_pip_trusted_host_build=true e repetindo apply uma vez…"
+			export TF_VAR_pip_trusted_host_build=true
+			log_retry="$(mktemp)"
+			set +e
+			run_tf apply -input=false -auto-approve 2>&1 | tee "$log_retry"
+			rc2=${PIPESTATUS[0]}
+			set -e
+			rm -f "$log"
+			rm -f "$log_retry"
+			if [[ "$rc2" -eq 0 ]]; then
+				warn "Fallback com trusted-host funcionou. Se quiser persistir para os próximos runs, descomente TF_VAR_pip_trusted_host_build=true no .env."
+			fi
+			return "$rc2"
+		fi
+		warn "Build da imagem backend falhou (pip/HTTPS) mesmo com TF_VAR_pip_trusted_host_build=true."
 	fi
 	rm -f "$log"
 	return "$rc"
