@@ -3,18 +3,23 @@ resource "docker_image" "backend" {
   build {
     context    = abspath("${path.root}/../app/backend")
     dockerfile = "Dockerfile"
+    build_args = {
+      PIP_TRUSTED_HOSTS = var.pip_trusted_host_build ? "1" : ""
+    }
   }
 
   triggers = {
-    dockerfile = filemd5(abspath("${path.root}/../app/backend/Dockerfile"))
-    main_py    = filemd5(abspath("${path.root}/../app/backend/main.py"))
+    dockerfile       = filemd5(abspath("${path.root}/../app/backend/Dockerfile"))
+    main_py          = filemd5(abspath("${path.root}/../app/backend/main.py"))
+    requirements_txt = filemd5(abspath("${path.root}/../app/backend/requirements.txt"))
+    pip_trusted      = var.pip_trusted_host_build ? "1" : "0"
   }
 }
 
 resource "docker_container" "api" {
   count = var.replica_count
 
-  name  = "${var.project_name}-api-${count.index}"
+  name  = "EKS-FASTAPI-${format("%02d", count.index + 1)}"
   image = docker_image.backend.image_id
 
   restart = "unless-stopped"

@@ -3,5 +3,6 @@ output "network_id" {
 }
 
 output "network_name" {
-  value = docker_network.this.name
+  description = "Name of the VPC container network."
+  value       = docker_network.this.name
 }

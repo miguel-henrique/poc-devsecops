@@ -2,7 +2,7 @@
 # Prefer the Terraform flow for IaC + Checkov alignment with CI.
 
 services:
-  db:
+  rds-postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-appuser}
@@ -11,45 +11,46 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      appnet:
-        aliases: [db]
+      VPC-DOCKERNETWORK:
+        aliases: [ rds-postgres ]
 
-  api:
+  eks-fastapi-01:
     build: ./app/backend
     environment:
-      PGHOST: db
+      PGHOST: rds-postgres
       PGPORT: "5432"
       PGUSER: ${POSTGRES_USER:-appuser}
       PGPASSWORD: ${POSTGRES_PASSWORD:?}
       PGDATABASE: ${POSTGRES_DB:-appdb}
       REPLICA_INDEX: "0"
     depends_on:
-      db:
+      rds-postgres:
         condition: service_healthy
     networks:
-      - appnet
+      - VPC-DOCKERNETWORK
 
-  web:
+  elb-nginx:
     build: ./app/frontend
     ports:
       - "${HOST_FRONTEND_PORT:-3000}:8080"
     volumes:
       - ./app/frontend/nginx.compose.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - api
+      - eks-fastapi-01
     networks:
-      - appnet
+      - VPC-DOCKERNETWORK
 
 volumes:
   pgdata:
 
+
 networks:
-  appnet:
+  VPC-DOCKERNETWORK:
     driver: bridge
     ipam:
       config:

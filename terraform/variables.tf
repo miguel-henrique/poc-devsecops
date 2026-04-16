@@ -56,3 +56,9 @@ variable "postgres_image" {
   type        = string
   default     = "postgres:16-alpine"
 }
+
+variable "pip_trusted_host_build" {
+  description = "If true, pip uses --trusted-host for PyPI during backend image build (corporate proxy / SSL issues)."
+  type        = bool
+  default     = false
+}

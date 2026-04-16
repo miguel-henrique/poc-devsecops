@@ -5,7 +5,7 @@
 #   ./scripts/dev-up.sh --install-deps          # Ubuntu/Debian: sudo apt install docker.io etc. if missing
 #   ./scripts/dev-up.sh --install-deps --with-terraform-apt
 #   ./scripts/dev-up.sh --yes --install-deps  # non-interactive apt -y
-#   ./scripts/dev-up.sh --destroy
+#   ./scripts/dev-up.sh --destroy   # ou ./dev-down.sh / make dev-down
 #   ./scripts/dev-up.sh --skip-checkov   # pula Checkov (mais rápido; sem demo de análise estática)
 set -euo pipefail
 
@@ -38,11 +38,12 @@ Usage: scripts/dev-up.sh [options]
   --install-deps    Ubuntu/Debian: sudo apt install docker.io and tools if Docker is missing.
   --with-terraform-apt   With --install-deps: also add HashiCorp APT and install terraform.
   -y, --yes         Non-interactive apt (DEBIAN_FRONTEND=noninteractive).
-  --destroy         terraform destroy (same backend selection as state).
+  --destroy         terraform destroy (equivalente a ./dev-down.sh / make dev-down).
   --skip-checkov    Não executa Checkov antes do apply (mais rápido).
   -h, --help        This help.
 
   CHECKOV=0|1       Se CHECKOV=0 no ambiente, equivale a --skip-checkov.
+  TF_VAR_pip_trusted_host_build=true   Força trusted-host no build Python (script tenta fallback automático ao detectar erro SSL).
 EOF
 	exit "${1:-0}"
 }
@@ -199,6 +200,71 @@ terraform_init_with_fallback() {
 	fi
 }
 
+# If a previous run left a Docker network but Terraform state was lost/reset, "create" fails with
+# "network ... already exists". Import the existing network so apply can proceed.
+reconcile_orphan_docker_network() {
+	local project="${TF_VAR_project_name:-poc-devsecops}"
+	local net="${TF_VAR_network_name:-app-vpc}"
+	local full="${project}-${net}"
+	if ! docker network inspect "$full" >/dev/null 2>&1; then
+		return 0
+	fi
+	if run_tf state show 'module.network.docker_network.this' >/dev/null 2>&1; then
+		return 0
+	fi
+	warn "Rede Docker '$full' já existe fora do state Terraform — importando para o state…"
+	local nid
+	nid="$(docker network inspect -f '{{.Id}}' "$full")"
+	run_tf import -input=false "module.network.docker_network.this" "$nid"
+}
+
+# Runs apply once; on duplicate Docker network error, import and retry once.
+# If backend image build fails due to pip/SSL in corporate networks, enable trusted-host
+# mode for this run and retry once.
+terraform_apply_with_recovery() {
+	reconcile_orphan_docker_network
+	local log rc rc2 log_retry
+	log="$(mktemp)"
+	set +e
+	run_tf apply -input=false -auto-approve 2>&1 | tee "$log"
+	rc=${PIPESTATUS[0]}
+	set -e
+	if [[ "$rc" -eq 0 ]]; then
+		rm -f "$log"
+		return 0
+	fi
+	if grep -qE 'Unable to create network:.*already exists|network with name .* already exists' "$log"; then
+		warn "Conflito de rede Docker — importando rede existente e repetindo apply uma vez…"
+		reconcile_orphan_docker_network
+		set +e
+		run_tf apply -input=false -auto-approve
+		rc2=$?
+		set -e
+		rm -f "$log"
+		return "$rc2"
+	fi
+	if grep -qE 'pip install|requirements\.txt|CERTIFICATE_VERIFY_FAILED|SSLError|certificate verify failed' "$log"; then
+		if [[ "${TF_VAR_pip_trusted_host_build:-}" != "true" ]]; then
+			warn "Build da imagem backend falhou (pip/HTTPS). Ativando fallback automático TF_VAR_pip_trusted_host_build=true e repetindo apply uma vez…"
+			export TF_VAR_pip_trusted_host_build=true
+			log_retry="$(mktemp)"
+			set +e
+			run_tf apply -input=false -auto-approve 2>&1 | tee "$log_retry"
+			rc2=${PIPESTATUS[0]}
+			set -e
+			rm -f "$log"
+			rm -f "$log_retry"
+			if [[ "$rc2" -eq 0 ]]; then
+				warn "Fallback com trusted-host funcionou. Se quiser persistir para os próximos runs, descomente TF_VAR_pip_trusted_host_build=true no .env."
+			fi
+			return "$rc2"
+		fi
+		warn "Build da imagem backend falhou (pip/HTTPS) mesmo com TF_VAR_pip_trusted_host_build=true."
+	fi
+	rm -f "$log"
+	return "$rc"
+}
+
 destroy_stack() {
 	pick_terraform_backend
 	info "terraform destroy…"
@@ -223,10 +289,12 @@ main() {
 
 	presentation_init
 	presentation_banner
+	presentation_research_bridge
 
 	if [[ "$SKIP_CHECKOV" -eq 1 ]]; then
 		presentation_skip_checkov
 	else
+		presentation_pipeline_stages
 		presentation_section_static_analysis
 		presentation_note_ci
 		if command -v checkov >/dev/null 2>&1; then
@@ -251,7 +319,7 @@ main() {
 
 	_c "$_C_YELLOW" "  ▶ terraform apply — criando/atualizando rede, banco, API e frontend…"
 	info "terraform apply…"
-	run_tf apply -input=false -auto-approve
+	terraform_apply_with_recovery
 
 	echo ""
 	_c "$_C_BOLD" "  Saídas do Terraform (outputs):"
@@ -261,6 +329,7 @@ main() {
 	local port="${TF_VAR_host_frontend_port:-3000}"
 	local net="${TF_VAR_network_name:-app-vpc}"
 	presentation_live_status "$project"
+	presentation_post_apply_summary "$project" "$replicas" "$port" "$net"
 	presentation_footer "$project" "$port" "$net"
 }
 

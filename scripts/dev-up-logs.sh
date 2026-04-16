@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Pretty presentation logs for dev-up.sh (sourced, not executed directly).
-# Portuguese (BR) labels for demos acadêmicas — adjust TERM=dumb or non-tty disables colors.
+# Logs para demo acadêmica (sourced por dev-up.sh). PT-BR.
+# Relaciona: PoC AWS (VPC, SG, RDS, EKS, storage) ↔ containers locais ↔ conceitos da monografia.
 
 presentation_init() {
 	PRESENTATION_USE_COLOR=0
@@ -30,26 +30,63 @@ _c() {
 
 presentation_banner() {
 	_c "$_C_CYAN$_C_BOLD" "══════════════════════════════════════════════════════════════════════"
-	_c "$_C_CYAN$_C_BOLD" "  PoC DevSecOps — ambiente local (IaC + análise estática + containers)"
+	_c "$_C_CYAN$_C_BOLD" "  PoC DevSecOps local — IaC + Shift-left + análise estática (Checkov)"
 	_c "$_C_CYAN$_C_BOLD" "══════════════════════════════════════════════════════════════════════"
+	echo ""
+}
+
+presentation_research_bridge() {
+	_c "$_C_BLUE$_C_BOLD" "  📚  Conceitos"
+	_c "$_C_DIM" "     • Shift-left: controles de segurança antes do deploy (SAST em IaC e imagens)."
+	_c "$_C_DIM" "     • IaC auditável: Terraform descreve rede, dados, compute e borda como código."
+	_c "$_C_DIM" "     • Fail-fast: Checkov bloqueia o fluxo local se houver falhas (como pre-commit/CI)."
+	_c "$_C_DIM" "     • Nesta PoC em containers não rodamos GitGuardian nem OPA/Rego — apenas Checkov;"
+	_c "$_C_DIM" "       na PoC AWS completa essas camadas complementam a esteira."
+	echo ""
+	_c "$_C_BLUE$_C_BOLD" "  ☁️  Paralelo com a PoC AWS (Terraform em ambiente real)"
+	_c "$_C_DIM" "     Referência de arquitetura: módulos vpc, security, iam, storage, database (RDS),"
+	_c "$_C_DIM" "     cluster (EKS + workernodes). Abaixo, o que cada *container local* evoca nesse desenho."
+	echo ""
+	_c "$_C_DIM" "     ┌──────────────────────────┬────────────────────────────────────────────────┐"
+	_c "$_C_DIM" "     │ Módulo / serviço AWS     │ Representação nesta PoC (Docker + Terraform) │"
+	_c "$_C_DIM" "     ├──────────────────────────┼────────────────────────────────────────────────┤"
+	_c "$_C_DIM" "     │ VPC + subnets + rotas    │ docker_network (bridge + IPAM) — rede isolada │"
+	_c "$_C_DIM" "     │ Security Groups          │ Isolamento por rede Docker + privileged=false│"
+	_c "$_C_DIM" "     │ RDS (PostgreSQL)         │ Container postgres + volume persistente      │"
+	_c "$_C_DIM" "     │ EKS / pods / tasks       │ N réplicas FastAPI (balanceadas pelo nginx)  │"
+	_c "$_C_DIM" "     │ ELB / Ingress / estático │ nginx: entrada HTTP, /api/ → pool de APIs    │"
+	_c "$_C_DIM" "     │ S3 / endpoints / IAM     │ Não modelados aqui (só na PoC AWS)           │"
+	_c "$_C_DIM" "     └──────────────────────────┴────────────────────────────────────────────────┘"
+	echo ""
+}
+
+presentation_pipeline_stages() {
+	_c "$_C_MAGENTA$_C_BOLD" "  ⚙️  Esteira local (trecho que o dev-up reproduz antes do provisionamento)"
+	_c "$_C_DIM" "     Etapa A — Qualidade de IaC (no GitHub Actions também: terraform fmt/validate)"
+	_c "$_C_DIM" "             Aqui: assumimos código válido; init/apply validam na prática."
+	_c "$_C_DIM" "     Etapa B — SAST / conformidade (Checkov, políticas inspiradas em boas práticas CIS)"
+	_c "$_C_DIM" "             Alvo 1: terraform/ (HCL, grafo de recursos, docker_container…)"
+	_c "$_C_DIM" "             Alvo 2: app/**/Dockerfile (USER, HEALTHCHECK, superfície de ataque)"
+	_c "$_C_DIM" "     Etapa C — Provisionamento (terraform apply → Docker cria rede, volumes, containers)"
+	_c "$_C_DIM" "             Equivalente conceitual a aplicar um plano na conta AWS."
 	echo ""
 }
 
 presentation_section_static_analysis() {
 	echo ""
 	_c "$_C_MAGENTA$_C_BOLD" "┌─────────────────────────────────────────────────────────────────────┐"
-	_c "$_C_MAGENTA$_C_BOLD" "│  🔒  Análise estática de infraestrutura e imagens (Checkov)        │"
+	_c "$_C_MAGENTA$_C_BOLD" "│  🔒  Etapa B — Análise estática (Checkov) = gate antes do deploy    │"
 	_c "$_C_MAGENTA$_C_BOLD" "└─────────────────────────────────────────────────────────────────────┘"
-	_c "$_C_DIM" "     • Terraform (HCL): políticas em grafo, boas práticas declarativas"
-	_c "$_C_DIM" "     • Dockerfiles: usuário não-root, HEALTHCHECK, higiene de build"
+	_c "$_C_DIM" "     Objetivo: detectar configurações inseguras *antes* de materializar infraestrutura."
+	_c "$_C_DIM" "     • Terraform: políticas sobre recursos declarativos (ex.: privilégio excessivo)."
+	_c "$_C_DIM" "     • Dockerfiles: baseline de endurecimento de imagem (não-root, HEALTHCHECK)."
 	echo ""
 }
 
 presentation_note_ci() {
-	_c "$_C_BLUE" "  🔄  Pipeline de CI (GitHub Actions)"
-	_c "$_C_DIM" "      No repositório, .github/workflows/pipeline.yml executa em cada push:"
-	_c "$_C_DIM" "      terraform fmt, init, validate → Checkov (Terraform + Dockerfiles) → terraform plan"
-	_c "$_C_DIM" "      Abaixo: mesma verificação Checkov que o CI roda no GitHub (reprodução local)."
+	_c "$_C_BLUE" "  🔄  Pipeline completo no GitHub Actions (.github/workflows/pipeline.yml)"
+	_c "$_C_DIM" "      checkout → setup Terraform → fmt -check → init → validate → Checkov (×2) → plan"
+	_c "$_C_DIM" "      O que você vê *abaixo* é a mesma família de verificação Checkov do CI, em modo local."
 	echo ""
 }
 
@@ -57,18 +94,19 @@ presentation_section_provision() {
 	local replicas="${1:-2}"
 	echo ""
 	_c "$_C_GREEN$_C_BOLD" "┌─────────────────────────────────────────────────────────────────────┐"
-	_c "$_C_GREEN$_C_BOLD" "│  ☁️   Provisionamento declarativo (Terraform → Docker)               │"
+	_c "$_C_GREEN$_C_BOLD" "│  ☁️  Etapa C — Provisionamento declarativo (Terraform → Docker)      │"
 	_c "$_C_GREEN$_C_BOLD" "└─────────────────────────────────────────────────────────────────────┘"
-	_c "$_C_DIM" "     Analogia com nuvem: rede (VPC) → dados (RDS) → compute (réplicas) → borda (nginx)"
-	_c "$_C_DIM" "     • Rede isolada          → docker_network (bridge + IPAM)"
-	_c "$_C_DIM" "     • Banco gerenciado      → PostgreSQL + volume persistente"
-	_c "$_C_DIM" "     • Camada de aplicação   → FastAPI × ${replicas} (balanceado pelo nginx)"
-	_c "$_C_DIM" "     • Entrada HTTP          → nginx (proxy / + /api/)"
+	_c "$_C_DIM" "     Ordem dos módulos (como na PoC AWS: rede → dados → compute → borda):"
+	_c "$_C_DIM" "     1. network   → analogia VPC (rede isolada + serviços anexos)"
+	_c "$_C_DIM" "     2. database  → analogia RDS PostgreSQL em subnets privadas"
+	_c "$_C_DIM" "     3. backend   → analogia workloads no EKS (N réplicas = N tasks/pods)"
+	_c "$_C_DIM" "     4. frontend  → analogia ALB/Ingress + conteúdo estático"
 	echo ""
 }
 
 presentation_skip_checkov() {
-	_c "$_C_YELLOW" "  ⏭️  Checkov ignorado (--skip-checkov). Para demonstrar análise estática, rode sem essa opção."
+	_c "$_C_YELLOW" "  ⏭️  Checkov ignorado (--skip-checkov / CHECKOV=0). Sem esta etapa não há simulação"
+	_c "$_C_YELLOW" "     completa do gate SAST da monografia. Para ensaios rápidos apenas."
 	echo ""
 }
 
@@ -82,15 +120,19 @@ run_checkov_scan() {
 			_c "$_C_DIM" "     (puxando imagem na primeira execução — pode levar um minuto)"
 			docker pull bridgecrew/checkov:latest
 		}
-		# Entrypoint do container já é checkov
+		# --skip-download + BC_SKIP_MAPPING: evita chamadas HTTPS a api0.prismacloud.io (falham em redes corporativas / WSL com inspeção TLS).
 		docker run --rm \
+			-e BC_SKIP_MAPPING=TRUE \
 			-v "${repo_root}:/workspace:ro" \
 			bridgecrew/checkov:latest \
+			--skip-download \
 			-d /workspace/terraform --framework terraform --compact
 		local ec1=$?
 		docker run --rm \
+			-e BC_SKIP_MAPPING=TRUE \
 			-v "${repo_root}:/workspace:ro" \
 			bridgecrew/checkov:latest \
+			--skip-download \
 			-d /workspace/app --framework dockerfile --compact
 		local ec2=$?
 		if [[ $ec1 -ne 0 || $ec2 -ne 0 ]]; then
@@ -102,58 +144,95 @@ run_checkov_scan() {
 	_c "$_C_CYAN" "  → Executando Checkov no host…"
 	(
 		cd "$repo_root" || exit 1
-		checkov -d terraform --framework terraform --compact &&
-			checkov -d app --framework dockerfile --compact
+		export BC_SKIP_MAPPING=TRUE
+		checkov --skip-download -d terraform --framework terraform --compact &&
+			checkov --skip-download -d app --framework dockerfile --compact
 	)
 }
 
 presentation_checkov_ok() {
 	echo ""
-	_c "$_C_GREEN$_C_BOLD" "  ✅ Checkov: nenhuma falha bloqueante nos alvos configurados (Terraform + Dockerfiles)."
+	_c "$_C_GREEN$_C_BOLD" "  ✅ Gate Checkov: passou nos alvos Terraform + Dockerfiles (fail-fast satisfeito)."
+	_c "$_C_DIM" "     Prosseguindo para materializar os “serviços AWS simulados” como containers."
 	echo ""
 }
 
 presentation_checkov_hint_install() {
-	_c "$_C_DIM" "     Dica: pip install checkov   ou   use Docker (este script tenta Docker se não houver checkov)."
+	_c "$_C_DIM" "     Dica: pip install checkov   ou   Docker puxará bridgecrew/checkov automaticamente."
 	echo ""
 }
 
 presentation_live_status() {
-	local project="${1:-poc-devsecops}"
 	echo ""
-	_c "$_C_BOLD" "  📦  Containers em execução"
-	docker ps --filter "name=${project}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || _c "$_C_DIM" "    (nenhum container encontrado com esse filtro)"
+	_c "$_C_BOLD" "  📦  Containers em execução (estado atual do “landing zone” local)"
+	docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E 'NAMES|EKS-FASTAPI|ELB-NGINX|RDS-POSTGRES' || _c "$_C_DIM" "    (nenhum container relevante encontrado)"
 	echo ""
 }
 
+presentation_post_apply_summary() {
+       local replicas="${2:-2}"
+       local port="${3:-3000}"
+       echo ""
+       _c "$_C_GREEN$_C_BOLD" "══════════════════════════════════════════════════════════════════════"
+       _c "$_C_GREEN$_C_BOLD" "  🗺️  O que foi provisionado e o que cada peça representa (AWS + monografia)"
+       _c "$_C_GREEN$_C_BOLD" "══════════════════════════════════════════════════════════════════════"
+       echo ""
+       _c "$_C_BOLD" "  Rede"
+       _c "$_C_DIM" "    Recurso Terraform: docker_network → nome VPC-DOCKERNETWORK"
+       _c "$_C_DIM" "    Conceito AWS: VPC + anexo dos workloads (sub-redes reais colapsadas em um bridge)."
+       _c "$_C_DIM" "    Conceito acadêmico: segmentação / superfície de ataque reduzida."
+       echo ""
+       _c "$_C_BOLD" "  Dados"
+       _c "$_C_DIM" "    Container: RDS-POSTGRES  →  analogia Amazon RDS (PostgreSQL), dados em volume."
+       _c "$_C_DIM" "    Conceito acadêmico: persistência gerenciada; credenciais via variáveis (não em Git)."
+       echo ""
+       _c "$_C_BOLD" "  Compute (réplicas da API)"
+       local i
+       for ((i = 1; i <= replicas; i++)); do
+	       local idx=$(printf "%02d" "$i")
+	       _c "$_C_DIM" "    Container: EKS-FASTAPI-${idx}  →  analogia pods/tasks no EKS ou serviços ECS."
+       done
+       _c "$_C_DIM" "    Conceito acadêmico: disponibilidade horizontal; cada réplica atende /health e /api/."
+       echo ""
+       _c "$_C_BOLD" "  Borda / apresentação"
+       _c "$_C_DIM" "    Container: ELB-NGINX  →  analogia ALB + Ingress + origem estática (S3/CloudFront simpl.)."
+       _c "$_C_DIM" "    Porta publicada: localhost:${port} → único ponto de entrada HTTP para a demo."
+       _c "$_C_DIM" "    Tráfego: navegador → nginx → upstream pool → uma das réplicas FastAPI → RDS (db)."
+       echo ""
+}
+
 presentation_footer() {
-	local project="${1:-poc-devsecops}"
 	local port="${2:-3000}"
-	local net_suffix="${3:-app-vpc}"
-	local full_net="${project}-${net_suffix}"
 	echo ""
 	_c "$_C_CYAN$_C_BOLD" "══════════════════════════════════════════════════════════════════════"
-	_c "$_C_CYAN$_C_BOLD" "  📋  Comandos úteis para inspeção do ambiente"
+	_c "$_C_CYAN$_C_BOLD" "  📋  Operação (Comandos para inspeção manual"
 	_c "$_C_CYAN$_C_BOLD" "══════════════════════════════════════════════════════════════════════"
 	echo ""
-	_c "$_C_BOLD" "  Serviços em execução (containers do projeto)"
-	_c "$_C_DIM" "    docker ps --filter \"name=${project}\" --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\""
+	_c "$_C_BOLD" "  Encerrar tudo e reprovisionar depois"
+	_c "$_C_DIM" "    ./dev-down.sh          ou   ./dev-up.sh --destroy   ou   make dev-down"
+	_c "$_C_DIM" "    Depois: ./dev-up.sh    (recria rede, volumes, containers do zero)"
 	echo ""
-	_c "$_C_BOLD" "  Rede análoga à VPC"
-	_c "$_C_DIM" "    docker network inspect ${full_net} --format '{{json .Name}} {{json .IPAM.Config}}'"
-	_c "$_C_DIM" "    docker network ls | grep -E \"${project}|NAME\""
+	_c "$_C_BOLD" "  Serviços em execução"
+	_c "$_C_DIM" "    docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
 	echo ""
-	_c "$_C_BOLD" "  Detalhes de um serviço (substitua o nome)"
-	_c "$_C_DIM" "    docker inspect ${project}-web --format '{{.Name}} → {{.State.Status}} → {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
-	_c "$_C_DIM" "    docker inspect ${project}-db --format '{{.Name}} health: {{.State.Health.Status}}'"
+	_c "$_C_BOLD" "  Rede (VPC local)"
+	_c "$_C_DIM" "    docker network inspect VPC-DOCKERNETWORK --format '{{json .Name}} {{json .IPAM.Config}}'"
+	_c "$_C_DIM" "    docker network ls | grep -E 'VPC-DOCKERNETWORK|NAME'"
 	echo ""
-	_c "$_C_BOLD" "  Saídas do Terraform (URLs, hosts)"
+	_c "$_C_BOLD" "  Um container em detalhe"
+	_c "$_C_DIM" "    docker inspect ELB-NGINX --format '{{.Name}} → {{.State.Status}} → {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
+	_c "$_C_DIM" "    docker inspect RDS-POSTGRES --format '{{.Name}} health: {{.State.Health.Status}}'"
+	_c "$_C_DIM" "    docker inspect EKS-FASTAPI-01 --format '{{.Name}} → {{.State.Status}} → {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'"
+	echo ""
+	_c "$_C_BOLD" "  Terraform"
 	_c "$_C_DIM" "    terraform -chdir=terraform output"
 	_c "$_C_DIM" "    curl -s http://localhost:${port}/api/status | jq .   # se tiver jq"
 	echo ""
-	_c "$_C_BOLD" "  Pipeline CI (não executa localmente no dev-up — apenas no GitHub)"
+	_c "$_C_BOLD" "  CI no GitHub (não roda no dev-up)"
 	_c "$_C_DIM" "    cat .github/workflows/pipeline.yml"
-	_c "$_C_DIM" "    # jobs: checkout → setup terraform → fmt/validate → checkov → plan"
+	echo ""
+	_c "$_C_BOLD" "  Experimentos com Checkov (quebrar de propósito)"
+	_c "$_C_DIM" "    Ver: docs/GUIA-EXPERIMENTOS-CHECKOV.md"
 	echo ""
 	_c "$_C_GREEN" "  🌐 Frontend:  http://localhost:${port}"
 	_c "$_C_GREEN" "  🔌 API teste:  curl -s http://localhost:${port}/api/status"
