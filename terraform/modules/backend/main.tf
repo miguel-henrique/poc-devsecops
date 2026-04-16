@@ -19,7 +19,7 @@ resource "docker_image" "backend" {
 resource "docker_container" "api" {
   count = var.replica_count
 
-  name  = "${var.project_name}-api-${count.index}"
+  name  = "EKS-FASTAPI-${format("%02d", count.index + 1)}"
   image = docker_image.backend.image_id
 
   restart = "unless-stopped"

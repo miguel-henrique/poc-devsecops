@@ -1,5 +1,5 @@
 resource "docker_network" "this" {
-  name = "${var.project_name}-${var.network_name}"
+  name = "VPC-DOCKERNETWORK"
 
   driver = "bridge"
 

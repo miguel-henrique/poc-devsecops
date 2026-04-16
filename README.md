@@ -67,18 +67,18 @@ Other entry points: `make dev-up` (same as `./dev-up.sh`), `make demo`, `./scrip
 | Edge / UI | ALB + static site | `nginx` (unprivileged) reverse proxy + static assets |
 | Secrets | Parameter Store / Secrets Manager | Environment variables (`TF_VAR_*` / `.env`), never committed |
 
-**Traffic flow:** Browser → `localhost:3000` (configurable) → nginx → upstream pool of FastAPI replicas → PostgreSQL on the private network.
+**Traffic flow:** Browser → `localhost:3000` (configurable) → ELB-NGINX → upstream pool of EKS-FASTAPI-XX (FastAPI replicas) → RDS-POSTGRES on the VPC-DOCKERNETWORK network.
 
 ```
-┌─────────────┐     ┌──────────────────┐     ┌─────────────────────────────┐
-│   Browser   │────▶│  nginx (frontend) │────▶│  FastAPI × N (backend pool)  │
-└─────────────┘     └──────────────────┘     └──────────────┬──────────────┘
+┌─────────────┐     ┌────────────────────┐     ┌────────────────────────────────┐
+│   Browser   │────▶│  ELB-NGINX         │────▶│  EKS-FASTAPI-XX × N (FastAPI)  │
+└─────────────┘     └────────────────────┘     └──────────────┬────────────────┘
                                                             │
                                                             ▼
-                                               ┌────────────────────────┐
-                                               │ PostgreSQL (database)  │
-                                               └────────────────────────┘
-         All containers attach to one Docker network (simulated VPC).
+                                               ┌────────────────────────────┐
+                                               │ RDS-POSTGRES               │
+                                               └────────────────────────────┘
+         All containers attach to one Docker network (VPC-DOCKERNETWORK, simulating a VPC).
 ```
 
 ## Repository layout
@@ -87,14 +87,21 @@ Other entry points: `make dev-up` (same as `./dev-up.sh`), `make demo`, `./scrip
 - `app/backend/` — FastAPI service (`/health`, `/api/status`).
 - `app/frontend/` — Static UI + nginx configs (Terraform renders upstream list for load spreading).
 - `.github/workflows/pipeline.yml` — CI: `fmt`, `init`, `validate`, Checkov, `plan`.
-- `docker-compose.yml` — Optional stack without Terraform (single API replica).
+   - `docker-compose.yml` — Optional stack without Terraform (nomes: RDS-POSTGRES, EKS-FASTAPI-01, ELB-NGINX, VPC-DOCKERNETWORK).
 - `Makefile` — Convenience targets for local workflows.
 - `dev-up.sh` / `scripts/dev-up.sh` — One-shot bootstrap: checks deps, host Terraform or Docker, init + apply.
 - `scripts/terraform-docker.sh` — Runs Terraform in Docker when `terraform` is not installed; forwards `TF_VAR_*` and adds `--group-add` for the Docker socket GID so the container can use `/var/run/docker.sock`.
 
-## Prerequisites
-
 - **Docker Engine** — daemon reachable at `/var/run/docker.sock` (default on Linux).
+
+---
+
+**Container naming convention (AWS mapping):**
+
+- `RDS-POSTGRES`: PostgreSQL database (simulates AWS RDS)
+- `EKS-FASTAPI-XX`: Backend FastAPI replicas (simulates EKS nodes, XX = 01, 02, ...)
+- `ELB-NGINX`: Frontend nginx (simulates Elastic Load Balancer)
+- `VPC-DOCKERNETWORK`: Docker network (simulates a VPC)
 - **Terraform `>= 1.5`** — optional for this repo: if `terraform` is **not** on your `PATH`, `make` runs [`scripts/terraform-docker.sh`](scripts/terraform-docker.sh) (official `hashicorp/terraform` image with your repo mounted). You still need Docker for that.
 - Python 3 + `pip` **or** the `bridgecrew/checkov` container for scans (only if you run Checkov locally).
 

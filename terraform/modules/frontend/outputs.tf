@@ -1,5 +1,6 @@
 output "container_name" {
-  value = docker_container.web.name
+  description = "Name of the ELB-NGINX container."
+  value       = docker_container.web.name
 }
 
 output "url" {
