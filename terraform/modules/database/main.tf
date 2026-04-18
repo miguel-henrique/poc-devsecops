@@ -8,7 +8,7 @@ resource "docker_volume" "data" {
 }
 
 resource "docker_container" "postgres" {
-  name  = "${var.project_name}-db"
+  name  = "RDS-POSTGRES"
   image = docker_image.postgres.image_id
 
   restart = "unless-stopped"

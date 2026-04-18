@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -37,12 +37,14 @@
     </style>
   </head>
   <body>
-    <h1>Local cloud PoC</h1>
+    <h1>PoC nuvem local</h1>
     <p>
-      This UI is served by nginx (frontend). It calls the API through
-      <code>/api/</code>, which is proxied to one of the backend replicas.
+      Esta interface é servida pelo <strong>nginx</strong> (camada de borda / analogia
+      a ALB + conteúdo estático). A página chama a API pelo caminho
+      <code>/api/</code>, que o nginx encaminha para <strong>uma das réplicas</strong>
+      do backend (analogia a pods no EKS ou tarefas no ECS).
     </p>
-    <p id="status">Loading API status…</p>
+    <p id="status">Carregando status da API…</p>
     <pre id="payload"></pre>
     <script>
       async function load() {
@@ -52,12 +54,12 @@
           const res = await fetch("/api/status");
           const body = await res.json();
           statusEl.textContent = res.ok
-            ? "API reachable (database check below)."
-            : "API returned an error.";
+            ? "API acessível (verificação do banco abaixo)."
+            : "A API retornou erro.";
           statusEl.className = res.ok ? "ok" : "err";
           payloadEl.textContent = JSON.stringify(body, null, 2);
         } catch (e) {
-          statusEl.textContent = "Failed to reach /api/status";
+          statusEl.textContent = "Não foi possível acessar /api/status";
           statusEl.className = "err";
           payloadEl.textContent = String(e);
         }

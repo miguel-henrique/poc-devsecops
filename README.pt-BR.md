@@ -16,6 +16,8 @@ O script verifica o **Docker**, cria **`.env`** a partir de `.env.example` se ne
 
 Defina **`CHECKOV=0`** no ambiente para o mesmo efeito de `--skip-checkov`.
 
+**Derrubar a stack:** `./dev-down.sh` ou `make dev-down` (equivale a `terraform destroy`). Em seguida `./dev-up.sh` recria tudo.
+
 Se o Docker não estiver instalado (somente Ubuntu/Debian):
 
 ```bash
@@ -63,18 +65,18 @@ Outros pontos de entrada: `make dev-up` (equivalente a `./dev-up.sh`), `make dem
 | Borda / UI | ALB + site estático | nginx (não privilegiado) como proxy reverso + arquivos estáticos |
 | Segredos | Parameter Store / Secrets Manager | Variáveis de ambiente (`TF_VAR_*` / `.env`), nunca commitadas |
 
-**Fluxo de tráfego:** Navegador → `localhost:3000` (configurável) → nginx → pool upstream de réplicas FastAPI → PostgreSQL na rede privada.
+**Fluxo de tráfego:** Navegador → `localhost:3000` (configurável) → ELB-NGINX → pool upstream EKS-FASTAPI-XX (réplicas FastAPI) → RDS-POSTGRES na rede VPC-DOCKERNETWORK.
 
 ```
-┌─────────────┐     ┌──────────────────┐     ┌─────────────────────────────┐
-│  Navegador  │────▶│  nginx (frontend) │────▶│  FastAPI × N (pool backend)  │
-└─────────────┘     └──────────────────┘     └──────────────┬──────────────┘
+┌─────────────┐     ┌────────────────────┐     ┌────────────────────────────────┐
+│  Navegador  │────▶│  ELB-NGINX         │────▶│  EKS-FASTAPI-XX × N (FastAPI)  │
+└─────────────┘     └────────────────────┘     └──────────────┬─────────────────┘
                                                            │
                                                            ▼
-                                              ┌────────────────────────┐
-                                              │ PostgreSQL (database)  │
-                                              └────────────────────────┘
-         Todos os containers na mesma rede Docker (VPC simulada).
+                                              ┌────────────────────────────┐
+                                              │ RDS-POSTGRES               │
+                                              └────────────────────────────┘
+         Todos os containers na mesma rede Docker (VPC-DOCKERNETWORK, simulando uma VPC).
 ```
 
 ## Organização do repositório
@@ -83,14 +85,21 @@ Outros pontos de entrada: `make dev-up` (equivalente a `./dev-up.sh`), `make dem
 - `app/backend/` — Serviço FastAPI (`/health`, `/api/status`).
 - `app/frontend/` — UI estática + configs nginx (o Terraform gera a lista de upstreams para balanceamento).
 - `.github/workflows/pipeline.yml` — CI: `fmt`, `init`, `validate`, Checkov, `plan`.
-- `docker-compose.yml` — Stack opcional sem Terraform (uma réplica da API).
+   - `docker-compose.yml` — Stack opcional sem Terraform (nomes: RDS-POSTGRES, EKS-FASTAPI-01, ELB-NGINX, VPC-DOCKERNETWORK).
 - `Makefile` — Alvos de conveniência para fluxos locais.
 - `dev-up.sh` / `scripts/dev-up.sh` — Bootstrap em um passo: checa dependências, Terraform no host ou Docker, init + apply.
 - `scripts/terraform-docker.sh` — Executa Terraform em Docker quando `terraform` não está instalado; repassa `TF_VAR_*` e adiciona `--group-add` com o GID do socket Docker para o container usar `/var/run/docker.sock`.
 
-## Pré-requisitos
-
 - **Docker Engine** — daemon acessível em `/var/run/docker.sock` (padrão no Linux).
+
+---
+
+**Convenção de nomes dos containers (mapeamento AWS):**
+
+- `RDS-POSTGRES`: Banco PostgreSQL (simula AWS RDS)
+- `EKS-FASTAPI-XX`: Réplicas FastAPI backend (simula nós EKS, XX = 01, 02, ...)
+- `ELB-NGINX`: nginx frontend (simula Elastic Load Balancer)
+- `VPC-DOCKERNETWORK`: Rede Docker (simula uma VPC)
 - **Terraform `>= 1.5`** — opcional neste repositório: se `terraform` **não** estiver no `PATH`, o `make` usa [`scripts/terraform-docker.sh`](scripts/terraform-docker.sh) (imagem oficial `hashicorp/terraform` com o repositório montado). Ainda assim é necessário Docker.
 - Python 3 + `pip` **ou** o container `bridgecrew/checkov` para varreduras (somente se rodar Checkov localmente).
 
@@ -272,4 +281,6 @@ Versione `terraform/.terraform.lock.hcl` para provedores reproduzíveis; **não*
 
 ## Documentação acadêmica
 
-Para relacionar este projeto a pesquisa em DevSecOps e IaC, veja [`docs/APRESENTACAO-PESQUISA.md`](docs/APRESENTACAO-PESQUISA.md).
+- [`docs/APRESENTACAO-PESQUISA.md`](docs/APRESENTACAO-PESQUISA.md) — texto para apresentação e defesa  
+- [`docs/MAPEAMENTO-AWS-E-MONOGRAFIA.md`](docs/MAPEAMENTO-AWS-E-MONOGRAFIA.md) — PoC AWS (VPC, RDS, EKS…) ↔ containers locais ↔ conceitos da monografia  
+- [`docs/GUIA-EXPERIMENTOS-CHECKOV.md`](docs/GUIA-EXPERIMENTOS-CHECKOV.md) — como quebrar o Checkov de propósito e contraste com GitGuardian/OPA

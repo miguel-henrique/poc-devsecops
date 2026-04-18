@@ -1,5 +1,5 @@
 output "db_host" {
-  description = "Stable DNS name on the Docker network."
+  description = "Stable DNS name on the Docker network (RDS-POSTGRES)."
   value       = docker_container.postgres.name
 }
 

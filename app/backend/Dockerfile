@@ -2,11 +2,20 @@ FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Set PIP_TRUSTED_HOSTS=1 at build time (TF_VAR_pip_trusted_host_build=true) if PyPI HTTPS fails
+# behind a corporate proxy or with incomplete CA chains.
+# checkov:skip=CKV2_DOCKER_4: Trusted-host is opt-in via ARG only; default build uses full TLS verification.
+ARG PIP_TRUSTED_HOSTS=
+RUN if [ "$PIP_TRUSTED_HOSTS" = "1" ]; then \
+        pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt; \
+    else \
+        pip install --no-cache-dir -r requirements.txt; \
+    fi
 
 COPY main.py .
 

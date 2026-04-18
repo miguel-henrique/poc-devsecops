@@ -24,7 +24,7 @@ resource "docker_image" "frontend" {
 }
 
 resource "docker_container" "web" {
-  name  = "${var.project_name}-web"
+  name  = "ELB-NGINX"
   image = docker_image.frontend.image_id
 
   restart = "unless-stopped"

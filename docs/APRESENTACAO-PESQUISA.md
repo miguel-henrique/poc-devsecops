@@ -89,6 +89,8 @@ A analogia intencional com ambientes em nuvem (VPC, RDS, balanceador, réplicas)
 ## 7. Referência ao repositório
 
 - Documentação técnica detalhada: `README.md` (inglês) e `README.pt-BR.md` (português).
+- **Mapeamento AWS ↔ containers ↔ monografia:** `docs/MAPEAMENTO-AWS-E-MONOGRAFIA.md`
+- **Experimentos com Checkov (falhas propositais):** `docs/GUIA-EXPERIMENTOS-CHECKOV.md`
 - Este arquivo: `docs/APRESENTACAO-PESQUISA.md`.
 
 ## 8. Demonstração no terminal (gravar ou compartilhar tela)
@@ -102,6 +104,8 @@ O script **`./dev-up.sh`** foi pensado para apresentações:
 Para **repetir só o bloco final** sem subir tudo de novo: `make inspect` ou `./scripts/inspect-stack.sh`.
 
 Para iterar rápido sem Checkov: `./dev-up.sh --skip-checkov` ou `CHECKOV=0 ./dev-up.sh`.
+
+Para **derrubar** a stack e reprovisionar: `./dev-down.sh` ou `make dev-down`, depois `./dev-up.sh` novamente.
 
 ---
 
